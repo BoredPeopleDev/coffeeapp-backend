@@ -13,7 +13,7 @@ public class CentralController {
     @Autowired
     private DataServices dataServices;
 
-    @PostMapping("/login")
+    @GetMapping("/login")
     public ResponseEntity<?> loginCliente(@RequestBody LoginRequest request) {
         try {
             LoginResponse response = dataServices.validarLogin(request);
