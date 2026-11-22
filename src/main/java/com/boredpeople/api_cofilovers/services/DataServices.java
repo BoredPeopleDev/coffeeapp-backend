@@ -43,6 +43,6 @@ public class DataServices {
         if (!administradores.getPasswordHash().equals(request.getPassword())) {
             throw new RuntimeException("Credenciales incorrectas");
         }
-        return new SuperSuResponse();
+        return new SuperSuResponse("Bienvenido " + administradores.getNombre());
     }
 }
