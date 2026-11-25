@@ -9,5 +9,10 @@ import java.util.UUID;
 
 @Repository
 public interface ClientesRepository extends JpaRepository<Clientes, UUID> {
-    Optional<Clientes> findByCorreo(String correo);
+    //Validar inicio de sesion
+    Optional<Clientes> findByCliCorreoAndCliEliminadoEnIsNullAndCliActivo(
+            String cliCorreo, String cliActivo);
+
+    //Validar correo
+    boolean existsByCliCorreo(String cliCorreo);
 }

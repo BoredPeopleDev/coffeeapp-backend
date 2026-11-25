@@ -1,15 +1,12 @@
 package com.boredpeople.api_cofilovers.services;
 
-import com.boredpeople.api_cofilovers.models.Administradores;
+
 import com.boredpeople.api_cofilovers.models.Clientes;
-import com.boredpeople.api_cofilovers.models.dto.LoginRequest;
-import com.boredpeople.api_cofilovers.models.dto.LoginResponse;
-import com.boredpeople.api_cofilovers.models.dto.SuperSuRequest;
-import com.boredpeople.api_cofilovers.models.dto.SuperSuResponse;
+import com.boredpeople.api_cofilovers.models.dto.LoginClienteResponse;
 import com.boredpeople.api_cofilovers.repositories.ClientesRepository;
-import com.boredpeople.api_cofilovers.repositories.DataRepository;
-import com.boredpeople.api_cofilovers.repositories.SuperSuRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -18,31 +15,33 @@ import java.util.Optional;
 public class DataServices {
     @Autowired
     public ClientesRepository clientesRepository;
-    public SuperSuRepository superSuRepository;
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    public LoginClienteResponse loginClientes(String correo, String password) {
+        Clientes clientes = clientesRepository.findByCliCorreoAndCliEliminadoEnIsNullAndCliActivo(correo, "T").orElseThrow(() -> new IllegalArgumentException("Correo no registrado o cuenta inactiva"));
 
-    public LoginResponse validarLogin(LoginRequest request) {
-        Optional<Clientes> clienteOpt = clientesRepository.findByCorreo(request.getCorreo());
-
-        if (clienteOpt.isEmpty() || clienteOpt.get().getActivo().equals("F")) {
-            throw new RuntimeException("Credenciales incorrectas o usuario inactivo");
+        if (clientes.getCliPasswordHash() == null || !passwordEncoder.matches(password, clientes.getCliPasswordHash())) {
+            throw new IllegalArgumentException("Contraseña incorrecta");
         }
-        Clientes cliente = clienteOpt.get();
-        if (!cliente.getPasswordHash().equals(request.getPassword())) {
-            throw new RuntimeException("Credenciales incorrectas");
-        }
-        return new LoginResponse("Bienvenido " + cliente.getNombre(), "token");
+
+        return new LoginClienteResponse("Bienvenido, " + clientes.getCliNombre(), clientes.getCliNombre(), clientes.getCliCorreo());
     }
 
-    public SuperSuResponse validarUsuario(SuperSuRequest request) {
-        Optional<Administradores> admOpt = superSuRepository.findByCorreo(request.getCorreo());
-        if (admOpt.isEmpty()) {
-            throw new RuntimeException("Credenciales incorrectas o usuario inactivo");
+    //Registrar clientes
+    public LoginClienteResponse registrar(String nombre, String correo, String password) {
+        // 1. Validar que el correo no exista ya
+        boolean existe = clientesRepository.existsByCliCorreo(correo);
+        if (existe) {
+            throw new IllegalArgumentException("El correo ya está registrado");
         }
-        Administradores administradores = admOpt.get();
-        if (!administradores.getPasswordHash().equals(request.getPassword())) {
-            throw new RuntimeException("Credenciales incorrectas");
-        }
-        return new SuperSuResponse("Bienvenido " + administradores.getNombre());
+
+        // 2. Crear el cliente con la contraseña HASHEADA (nunca en texto plano)
+        Clientes clientes = Clientes.builder().cliNombre(nombre).cliCorreo(correo).cliPasswordHash(passwordEncoder.encode(password)).cliPuntosAcumulados(0).cliActivo("T").build();
+
+        // 3. Guardar (PrePersist rellena id, qr, creadoEn)
+        Clientes guardado = clientesRepository.save(clientes);
+
+        return new LoginClienteResponse("Cliente registrado correctamente", guardado.getCliNombre(), guardado.getCliCorreo());
     }
+
 }
